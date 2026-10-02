@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  checks:
+    name: Lint, types, unit and integration tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: payments_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 3s --health-timeout 3s --health-retries 20
+      rabbitmq:
+        image: rabbitmq:3.13-alpine
+        env:
+          RABBITMQ_DEFAULT_USER: test
+          RABBITMQ_DEFAULT_PASS: test
+        ports: ["5672:5672"]
+        options: >-
+          --health-cmd "rabbitmq-diagnostics -q ping"
+          --health-interval 5s --health-timeout 5s --health-retries 24
+    env:
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:test@localhost:5432/payments_test
+      TEST_RABBITMQ_URL: amqp://test:test@localhost:5672/
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run mypy
+      - run: uv run pytest -q
+
+  e2e:
+    name: End-to-end on docker compose
+    runs-on: ubuntu-latest
+    needs: checks
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - name: Prepare .env
+        run: |
+          cp .env.example .env
+          sed -i "s/^API_KEY=.*/API_KEY=$(openssl rand -hex 24)/" .env
+      - name: Start environment
+        run: docker compose --profile e2e up -d --build
+      - name: Wait for API
+        run: |
+          key=$(grep '^API_KEY=' .env | cut -d= -f2)
+          for i in $(seq 1 60); do
+            curl -fs -H "X-API-Key: $key" http://localhost:8000/health/ready && exit 0
+            sleep 2
+          done
+          exit 1
+      - run: uv sync --frozen
+      - run: uv run python scripts/e2e.py
+      - name: Container logs
+        if: failure()
+        run: docker compose --profile e2e logs --tail 200
+      - name: Tear down
+        if: always()
+        run: docker compose --profile e2e down -v
