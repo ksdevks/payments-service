@@ -1,5 +1,7 @@
 # Payment Service
 
+[![CI](https://github.com/ksdevks/payments-service/actions/workflows/ci.yml/badge.svg)](https://github.com/ksdevks/payments-service/actions/workflows/ci.yml)
+
 Микросервис асинхронной обработки платежей: принимает платеж по HTTP, обрабатывает его через эмулятор платежного шлюза и уведомляет клиента через webhook. Стек: FastAPI, Pydantic v2, SQLAlchemy 2.0 (async), PostgreSQL, RabbitMQ (FastStream), Alembic, Docker Compose, uv.
 
 ## Быстрый старт
