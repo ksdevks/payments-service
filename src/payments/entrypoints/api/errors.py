@@ -1,8 +1,12 @@
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 from payments.application.errors import IdempotencyKeyConflictError, PaymentNotFoundError
 from payments.domain import DomainError
+
+logger = logging.getLogger(__name__)
 
 
 class ApiError(Exception):
@@ -38,7 +42,14 @@ async def _handle_mapped(_: Request, exc: Exception) -> JSONResponse:
     raise exc
 
 
+async def _handle_unexpected(request: Request, exc: Exception) -> JSONResponse:
+    # Детали только в лог: клиенту не раскрываем внутренности.
+    logger.exception("unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(_body("internal_error", "internal server error"), status_code=500)
+
+
 def register_error_handlers(app: FastAPI) -> None:
+    app.add_exception_handler(Exception, _handle_unexpected)
     app.add_exception_handler(ApiError, _handle_api_error)
     for error_type in _ERROR_MAP:
         app.add_exception_handler(error_type, _handle_mapped)

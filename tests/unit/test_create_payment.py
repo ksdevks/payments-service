@@ -59,6 +59,17 @@ async def test_replay_with_same_request_returns_existing_payment() -> None:
     assert len(store.outbox) == 1
 
 
+async def test_integral_numbers_in_metadata_are_the_same_request() -> None:
+    store = InMemoryStore()
+    use_case = make_use_case(store)
+    first = await use_case.execute(command(metadata={"v": 1.0, "nested": [2.0, True]}))
+
+    second = await use_case.execute(command(metadata={"v": 1, "nested": [2, True]}))
+
+    assert not second.created
+    assert second.payment.id == first.payment.id
+
+
 async def test_same_key_with_different_request_is_conflict() -> None:
     store = InMemoryStore()
     use_case = make_use_case(store)

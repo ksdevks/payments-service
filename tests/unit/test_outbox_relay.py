@@ -86,7 +86,7 @@ async def test_each_message_is_marked_right_after_publish() -> None:
 
 
 async def test_batch_stops_before_lease_runs_out_and_releases_rest() -> None:
-    """Сценарий из ревью: медленные шаги съедают аренду посреди пачки."""
+    """Медленные шаги съедают аренду посреди пачки."""
     batch = [message() for _ in range(5)]
     store = FakeStore([batch])
     now = [0.0]
@@ -112,7 +112,7 @@ def test_lease_must_cover_two_steps() -> None:
 
 
 async def test_hanging_store_cannot_stretch_a_step() -> None:
-    """Сценарий из ревью: медленное хранилище (ожидание соединения, коммит)."""
+    """Медленное хранилище: ожидание соединения или коммит."""
 
     class HangingStore(FakeStore):
         async def mark_published(self, ids: Sequence[uuid.UUID]) -> None:

@@ -35,8 +35,9 @@ class OutboxMessage:
 
     @classmethod
     def for_payment_created(cls, event: PaymentCreated, now: datetime) -> OutboxMessage:
-        # id сообщения = id события: relay ставит его в message_id,
-        # и дубль публикации однозначно опознается на стороне consumer.
+        # id сообщения = id события: relay ставит его в message_id, по нему
+        # сообщение можно проследить через retry-очереди и DLQ. Дубли публикации
+        # consumer гасит не по message_id, а состоянием платежа и журналом шлюза.
         return cls(
             id=event.event_id,
             topic=PAYMENTS_NEW_TOPIC,

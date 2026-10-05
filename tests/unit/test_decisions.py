@@ -91,7 +91,7 @@ async def test_failed_dead_letter_publish_falls_back_to_native_dlx() -> None:
 
 
 async def test_broken_retry_queue_keeps_budget_and_delays() -> None:
-    """Сценарий из ревью: публикация retry падает на каждой доставке.
+    """Публикация в retry-очередь падает на каждой доставке.
 
     Ожидаем ровно max_attempts бизнес-обработок, паузы по политике и DLQ,
     а не повтор обработки до брокерного лимита без задержек.
@@ -128,7 +128,7 @@ async def test_broken_retry_queue_keeps_budget_and_delays() -> None:
 
 
 async def test_lost_ack_after_successful_last_attempt_is_acknowledged() -> None:
-    """Сценарий из ревью: третья попытка успешна, ACK потерян, сообщение вернулось."""
+    """Третья попытка успешна, ACK потерян, сообщение вернулось."""
     store, clock = InMemoryStore(), FixedClock()
     await CreatePayment(lambda: FakeUnitOfWork(store), clock).execute(
         CreatePaymentCommand(

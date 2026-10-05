@@ -109,6 +109,7 @@ async def test_get_payment_details(client: httpx.AsyncClient) -> None:
     assert data["metadata"] == {"order_id": 42}
     assert data["idempotency_key"] == "key-1"
     assert data["processed_at"] is None
+    assert data["webhook_delivered_at"] is None
 
 
 async def test_unknown_payment_is_404(client: httpx.AsyncClient) -> None:
@@ -129,6 +130,7 @@ async def test_unknown_payment_is_404(client: httpx.AsyncClient) -> None:
         {"webhook_url": "not-a-url"},
         {"description": ""},
         {"unexpected": "field"},
+        {"metadata": {"blob": "x" * 20_000}},
     ],
 )
 async def test_validation(client: httpx.AsyncClient, overrides: dict[str, Any]) -> None:
@@ -162,3 +164,26 @@ async def test_docs_describe_api_key_security_scheme() -> None:
     }
     create = schema["paths"]["/api/v1/payments"]["post"]
     assert create["security"] == [{"APIKeyHeader": []}]
+
+
+async def test_unexpected_error_keeps_error_format() -> None:
+    app = make_app()
+
+    class BrokenGetPayment:
+        async def execute(self, payment_id: object) -> None:
+            raise RuntimeError("database exploded")
+
+    services = app.state.services
+    app.state.services = ApiServices(
+        create_payment=services.create_payment,
+        get_payment=BrokenGetPayment(),  # type: ignore[arg-type]
+        check_ready=services.check_ready,
+    )
+    transport = httpx.ASGITransport(app=app, raise_app_exceptions=False)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get(
+            "/api/v1/payments/00000000-0000-0000-0000-000000000000", headers=AUTH
+        )
+
+    assert response.status_code == 500
+    assert response.json() == {"code": "internal_error", "detail": "internal server error"}

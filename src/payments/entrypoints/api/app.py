@@ -6,6 +6,7 @@ API пишет только в PostgreSQL (платеж + outbox в одной �
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from importlib.metadata import version
 
 from fastapi import FastAPI
 from sqlalchemy import text
@@ -34,7 +35,7 @@ def build_api(
     """
     app = FastAPI(
         title="Payment Service",
-        version="1.3.0",
+        version=version("payments"),
         description="Асинхронный процессинг платежей: outbox, RabbitMQ, webhooks.",
         lifespan=lifespan,
         docs_url="/docs" if docs_enabled else None,
